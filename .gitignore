@@ -22,6 +22,8 @@
 /subprojects/*/*.iml
 /subprojects/*/out
 
+*.class
+
 # Eclipse
 # -------
 *.classpath
