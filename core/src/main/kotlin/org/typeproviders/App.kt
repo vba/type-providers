@@ -1,34 +1,33 @@
 package org.typeproviders
 
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
-import java.io.File
-import net.bytebuddy.ByteBuddy
-import net.bytebuddy.implementation.FixedValue
-import net.bytebuddy.matcher.ElementMatchers.named
-import java.net.URL
+import com.fasterxml.jackson.databind.node.JsonNodeType
+
+typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
 
 
 fun main(args: Array<String>) {
-//    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
-    val jsonUrl = URL("https://api.github.com/users/vba/repos")
+    //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
+    //    val jsonUrl = URL("https://api.github.com/users/vba/repos")
+    val jsonUrl = Any().javaClass.getResource("/json/sample1.json")
 
-//    ByteBuddy()
-//        .subclass(Any::class.java)
-//        .name("org.typeproviders.Class1")
-//        .method(named("toString"))
-//        .intercept(FixedValue.value("Hello World!"))
-//        .make()
-//        .saveIn(File(buildFolder))
+    //    ByteBuddy()
+    //        .subclass(Any::class.java)
+    //        .name("org.typeproviders.Class1")
+    //        .method(named("toString"))
+    //        .intercept(FixedValue.value("Hello World!"))
+    //        .make()
+    //        .saveIn(File(buildFolder))
 
     val mapper = ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .enable(DeserializationFeature.USE_JAVA_ARRAY_FOR_JSON_ARRAY)
-//    val map = mapper.readValue<Map<String, Any?>>(jsonUrl)
+    //    val map = mapper.readValue<Map<String, Any?>>(jsonUrl)
     val tree = mapper.readTree(jsonUrl)
     // tree.get(0).fields().asSequence().toList()[2].value.nodeType
-    println (tree)
+    println(tree)
 
     /*
     *  Structured sources
@@ -39,3 +38,11 @@ fun main(args: Array<String>) {
     *
     * */
 }
+
+fun makeObjectNode(name: String = "", jsonNode: JsonNode): ObjectNode {
+    return ObjectNode("", "", listOf<ContainerNode>().asSequence())
+//    when(jsonNode.nodeType) {
+//        JsonNodeType.OBJECT -> makeObjectNode(name, (jsonNode as JacksonObjectNode).)
+//    }
+}
+
