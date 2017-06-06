@@ -27,6 +27,7 @@ fun main(args: Array<String>) {
     //    val map = mapper.readValue<Map<String, Any?>>(jsonUrl)
     val tree = mapper.readTree(jsonUrl)
     // tree.get(0).fields().asSequence().toList()[2].value.nodeType
+    makeObjectNode("", tree)
     println(tree)
 
     /*
@@ -39,10 +40,30 @@ fun main(args: Array<String>) {
     * */
 }
 
+fun getElements(jsonNode: JsonNode): List<Pair<String, JsonNode>> {
+    val result = mutableListOf<Pair<String, JsonNode>>()
+    val fields = jsonNode.fields()
+    while (fields.hasNext()) {
+        val node = fields.next()
+        result.add(Pair(node.key, node.value))
+    }
+    return result.toList()
+}
+
 fun makeObjectNode(name: String = "", jsonNode: JsonNode): ObjectNode {
+    //return ObjectNode("", "", listOf<ContainerNode>().asSequence())
+
+    when(jsonNode.nodeType) {
+        JsonNodeType.OBJECT -> {
+            val result = getElements(jsonNode)
+
+            //makeObjectNode(name, (jsonNode as JacksonObjectNode).)
+        }
+        else -> {
+
+        }
+    }
+
     return ObjectNode("", "", listOf<ContainerNode>().asSequence())
-//    when(jsonNode.nodeType) {
-//        JsonNodeType.OBJECT -> makeObjectNode(name, (jsonNode as JacksonObjectNode).)
-//    }
 }
 
