@@ -3,10 +3,9 @@ package org.typeproviders
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.JsonNodeType
 
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
-
+typealias JacksonObjectPair = Pair<String, JsonNode>
 
 fun main(args: Array<String>) {
     //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
@@ -40,8 +39,8 @@ fun main(args: Array<String>) {
     * */
 }
 
-fun getElements(jsonNode: JsonNode): List<Pair<String, JsonNode>> {
-    val result = mutableListOf<Pair<String, JsonNode>>()
+fun collectElements(jsonNode: JsonNode): List<JacksonObjectPair> {
+    val result = mutableListOf<JacksonObjectPair>()
     val fields = jsonNode.fields()
     while (fields.hasNext()) {
         val node = fields.next()
@@ -50,20 +49,27 @@ fun getElements(jsonNode: JsonNode): List<Pair<String, JsonNode>> {
     return result.toList()
 }
 
+
+fun getElements(jsonNode: JsonNode): Tree {
+    return collectElements(jsonNode).map {
+        if(!it.second.isObject && !it.second.isPojo) {
+            Tree.Leaf(it.first, it.second.asText())
+        } else {
+            Tree.Node(it.first, getElements(it.second))
+        }
+    }.fold()
+}
+
 fun makeObjectNode(name: String = "", jsonNode: JsonNode): ObjectNode {
     //return ObjectNode("", "", listOf<ContainerNode>().asSequence())
 
-    when(jsonNode.nodeType) {
-        JsonNodeType.OBJECT -> {
-            val result = getElements(jsonNode)
-
-            //makeObjectNode(name, (jsonNode as JacksonObjectNode).)
-        }
-        else -> {
-
-        }
-    }
+    //val elements = collectElements(jsonNode)
+    val elements = getElements(jsonNode)
 
     return ObjectNode("", "", listOf<ContainerNode>().asSequence())
 }
 
+open class Tree private constructor() {
+    class Leaf<out T>(val name: String, val value: T) : Tree()
+    class Node(val name: String, val subTrees: Sequence<Tree>) : Tree()
+}
