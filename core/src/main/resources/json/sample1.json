@@ -1,8 +1,9 @@
 {
   "field1": true,
   "field2": null,
-  "field3": "It can be better",
-  "subType": {
+  "field3": {"subField1:" : true},
+  "field4": "It can be better",
+  "subType1": {
     "validationStatus" : 1234
   }
 }
