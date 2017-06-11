@@ -4,6 +4,7 @@
   "field3": {"subField1:" : true},
   "field4": "It can be better",
   "subType1": {
-    "validationStatus" : 1234
+    "validationStatus" : 1234,
+    "verity": false
   }
 }

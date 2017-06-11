@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
 typealias JacksonObjectPair = Pair<String, JsonNode>
 
-data class SimpleNode(val name: String, val value: JsonNode, val level: Int)
+data class SimpleNode(val name: String, val level: Int, val node: JsonNode, var value: Any? = null)
 
 fun main(args: Array<String>) {
     //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
@@ -18,7 +18,7 @@ fun main(args: Array<String>) {
     //        .subclass(Any::class.java)
     //        .name("org.typeproviders.Class1")
     //        .method(named("toString"))
-    //        .intercept(FixedValue.value("Hello World!"))
+    //        .intercept(FixedValue.node("Hello World!"))
     //        .make()
     //        .saveIn(File(buildFolder))
 
@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
             .enable(DeserializationFeature.USE_JAVA_ARRAY_FOR_JSON_ARRAY)
     //    val map = mapper.readValue<Map<String, Any?>>(jsonUrl)
     val tree = mapper.readTree(jsonUrl)
-    // tree.get(0).fields().asSequence().toList()[2].value.nodeType
+    // tree.get(0).fields().asSequence().toList()[2].node.nodeType
     makeObjectNode("", tree)
     println(tree)
 
@@ -46,7 +46,7 @@ fun collectElements(jsonNode: JsonNode, level: Int): List<SimpleNode> {
     val fields = jsonNode.fields()
     while (fields.hasNext()) {
         val node = fields.next()
-        result.add(SimpleNode(node.key, node.value, level))
+        result.add(SimpleNode(node.key, level, node.value))
     }
     return result.toList()
 }
@@ -63,18 +63,31 @@ while( nodes_to_visit isn't empty ) {
 
 fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
     val awaitingNodes = mutableListOf<SimpleNode>()
+    var trees = listOf<Tree>()
     awaitingNodes.addAll(collectElements(jsonNode, 0))
 
     var current : SimpleNode? = null
-    var prev : SimpleNode? = null
+    var prev : SimpleNode?
+    var lastLeaf : Tree? = null
 
     while (!awaitingNodes.isEmpty()) {
         prev = current
         current = awaitingNodes.removeAt(0)
-        awaitingNodes.addAll(0, collectElements(current.value, current.level + 1))
+        awaitingNodes.addAll(0, collectElements(current.node, current.level + 1))
 
+        if (!current.node.isObject) {
+            current.value = current.node.toString()
+        } else {
 
+        }
 
+//        if (prev == null || prev.level == current.level) {
+//            lastLeaf = Tree.Leaf(current.name, current.node)
+//            trees += listOf(lastLeaf)
+//        } else {
+//            val node = Tree.Node(name = (lastLeaf as Tree.Leaf<*>).name)
+//            trees = trees.take(trees.size - 1) + listOf(node)
+//        }
 
     }
     return mutableListOf()
@@ -110,5 +123,5 @@ fun makeObjectNode(name: String = "", jsonNode: JsonNode): ObjectNode {
 
 open class Tree private constructor() {
     class Leaf<out T>(val name: String, val value: T) : Tree()
-    class Node(val name: String, val subTrees: Sequence<Tree>) : Tree()
+    class Node(val name: String, var subTrees: List<Tree> = listOf()) : Tree()
 }
