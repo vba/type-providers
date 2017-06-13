@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
 typealias JacksonObjectPair = Pair<String, JsonNode>
 
-data class SimpleNode(val name: String, val level: Int, val node: JsonNode, var value: Any? = null)
+data class SimpleNode(val name: String, val level: Int, val node: JsonNode, var value: Any? = null, var parent: SimpleNode? = null)
 
 fun main(args: Array<String>) {
     //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
@@ -41,12 +41,12 @@ fun main(args: Array<String>) {
     * */
 }
 
-fun collectElements(jsonNode: JsonNode, level: Int): List<SimpleNode> {
+fun collectElements(jsonNode: JsonNode, level: Int, parent: SimpleNode?): List<SimpleNode> {
     val result = mutableListOf<SimpleNode>()
     val fields = jsonNode.fields()
     while (fields.hasNext()) {
         val node = fields.next()
-        result.add(SimpleNode(node.key, level, node.value))
+        result.add(SimpleNode(node.key, level, node.value, parent = parent))
     }
     return result.toList()
 }
@@ -64,17 +64,23 @@ while( nodes_to_visit isn't empty ) {
 fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
     val awaitingNodes = mutableListOf<SimpleNode>()
     var trees = listOf<Tree>()
-    awaitingNodes.addAll(collectElements(jsonNode, 0))
+    awaitingNodes.addAll(collectElements(jsonNode, 0, null))
 
     var current : SimpleNode? = null
+    var parent : SimpleNode? = null
     var prev : SimpleNode?
     var lastLeaf : Tree? = null
 
     while (!awaitingNodes.isEmpty()) {
         prev = current
         current = awaitingNodes.removeAt(0)
-        awaitingNodes.addAll(0, collectElements(current.node, current.level + 1))
+        parent =
+                if (prev?.level ?: 0 < current.level) prev
+                else if (prev?.level ?: 0 > current.level) current.parent
+                else if (prev?.level ?: 0 == current.level) prev?.parent
+                else parent
 
+        awaitingNodes.addAll(0, collectElements(current.node, current.level + 1, parent = parent))
         if (!current.node.isObject) {
             current.value = current.node.toString()
         } else {
@@ -92,7 +98,6 @@ fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
     }
     return mutableListOf()
 }
-
 
 //fun getElements(jsonNode: JsonNode): Tree {
 //    var current = collectElements(jsonNode)
