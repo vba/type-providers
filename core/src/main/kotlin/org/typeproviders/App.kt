@@ -74,13 +74,8 @@ fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
     while (!awaitingNodes.isEmpty()) {
         prev = current
         current = awaitingNodes.removeAt(0)
-        parent =
-                if (prev?.level ?: 0 < current.level) prev
-                else if (prev?.level ?: 0 > current.level) current.parent
-                else if (prev?.level ?: 0 == current.level) prev?.parent
-                else parent
 
-        awaitingNodes.addAll(0, collectElements(current.node, current.level + 1, parent = parent))
+        awaitingNodes.addAll(0, collectElements(current.node, current.level + 1, parent = current))
         if (!current.node.isObject) {
             current.value = current.node.toString()
         } else {
