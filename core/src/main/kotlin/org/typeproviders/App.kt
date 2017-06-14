@@ -3,6 +3,8 @@ package org.typeproviders
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.JsonNodeType
 import java.lang.reflect.Type
 
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
@@ -11,16 +13,16 @@ typealias JacksonObjectPair = Pair<String, JsonNode>
 data class NodeWrapper(val name: String,
                        val level: Int,
                        val node: JsonNode,
-                       var value: Any? = null,
+                       val isArray: Boolean = false,
                        var parent: NodeWrapper? = null)
 
 
 open class TPType private constructor() {
-    class Primitive(val type: Type, val isArray : Boolean = false) : TPType()
-    class Reference(val type: TPClass, val isArray : Boolean = false) : TPType()
+    data class Primitive(val type: Type, val isArray : Boolean = false) : TPType()
+    data class Reference(val type: TPClass, val isArray : Boolean = false) : TPType()
 }
 data class TPClass(val fields: Iterable<TPField>)
-data class TPField(val name: String, val type: String)
+data class TPField(val name: String, val type: TPType)
 
 fun main(args: Array<String>) {
     //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
@@ -54,33 +56,52 @@ fun main(args: Array<String>) {
     * */
 }
 
+fun getType(wrapper: NodeWrapper) : Type {
+    return when(wrapper.node.nodeType) {
+        JsonNodeType.BINARY -> emptyArray<Byte>().javaClass
+        JsonNodeType.BOOLEAN -> false.javaClass
+        JsonNodeType.NUMBER -> 1L.javaClass
+        JsonNodeType.STRING -> "".javaClass
+        JsonNodeType.ARRAY -> emptyArray<Any>().javaClass
+        else -> {
+            object{}.javaClass
+        }
+    }
+}
+
+// jsonschema2pojo
 fun makeClass (wrappers: Iterable<NodeWrapper>) : TPClass {
     val grupped = wrappers.groupBy { it.level }
     val associativeMap = (0 ..(wrappers.map { it.level }.max() ?: 0))
         .fold(emptyList<Pair<NodeWrapper?, TPClass>>(), { acc, i ->
-            val parents = grupped.get(i)?.groupBy { it.parent }
-            val classes = parents?.keys?.map {
-                val fields = parents.get(it)?.map { TPField(it.name, it.node.nodeType.toString()) }?.toList() ?: emptyList()
+            val parents = grupped.get(i)?.groupBy { it.parent } ?: emptyMap()
+            val classes = parents.keys.map {
+                val fields = parents.get(it)?.map {
+                    TPField(it.name, TPType.Primitive(getType(it), it.isArray))
+                }?.toList() ?: emptyList()
                 Pair(it, TPClass(fields))
-            } ?: emptyList()
-
+            }
             acc + classes
-        })
-        .map { it.first to it.second }
-        .toMap()
+        }).map { it.first to it.second }.toMap()
     return TPClass(emptyList<TPField>())
 }
 
 fun collectElements(jsonNode: JsonNode, level: Int, parent: NodeWrapper?): List<NodeWrapper> {
-    val result = mutableListOf<NodeWrapper>()
-    val fields = jsonNode.fields()
-    while (fields.hasNext()) {
-        val node = fields.next()
-        result.add(NodeWrapper(node.key, level, node.value, parent = parent))
+    val getWrappers = { x :JsonNode ->
+        val fields = x.fields()
+        var wrappers = emptyList<NodeWrapper>()
+        while (fields.hasNext()) {
+            val node = fields.next()
+            wrappers += (NodeWrapper(node.key, level, node.value, parent = parent, isArray = node.value.isArray))
+        }
+        wrappers
     }
-    return result.toList()
+    if (!jsonNode.isArray()) {
+        return getWrappers(jsonNode)
+    }
+    val arrayNode = jsonNode as ArrayNode
+    return arrayNode.toList().map{ NodeWrapper("", level, it, parent = parent, isArray = it.isArray) }
 }
-
 
 /*
 list nodes_to_visit = {root};

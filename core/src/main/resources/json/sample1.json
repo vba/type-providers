@@ -3,9 +3,9 @@
   "field2": null,
   "field3": {"subField1" : true},
   "field4": "It can be better",
-  "field5": [1, 2, 3, 5],
   "subType1": {
     "validationStatus" : 1234,
     "verity": false
-  }
+  },
+  "field5": [5, 4, 3, 2, 1]
 }
