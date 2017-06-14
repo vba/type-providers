@@ -3,11 +3,24 @@ package org.typeproviders
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.lang.reflect.Type
 
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
 typealias JacksonObjectPair = Pair<String, JsonNode>
 
-data class SimpleNode(val name: String, val level: Int, val node: JsonNode, var value: Any? = null, var parent: SimpleNode? = null)
+data class NodeWrapper(val name: String,
+                       val level: Int,
+                       val node: JsonNode,
+                       var value: Any? = null,
+                       var parent: NodeWrapper? = null)
+
+
+open class TPType private constructor() {
+    class Primitive(val type: Type, val isArray : Boolean = false) : TPType()
+    class Reference(val type: TPClass, val isArray : Boolean = false) : TPType()
+}
+data class TPClass(val fields: Iterable<TPField>)
+data class TPField(val name: String, val type: String)
 
 fun main(args: Array<String>) {
     //    val buildFolder = "/Users/victor/projects/type-providers/core/build/typeproviders"
@@ -41,12 +54,29 @@ fun main(args: Array<String>) {
     * */
 }
 
-fun collectElements(jsonNode: JsonNode, level: Int, parent: SimpleNode?): List<SimpleNode> {
-    val result = mutableListOf<SimpleNode>()
+fun makeClass (wrappers: Iterable<NodeWrapper>) : TPClass {
+    val grupped = wrappers.groupBy { it.level }
+    val associativeMap = (0 ..(wrappers.map { it.level }.max() ?: 0))
+        .fold(emptyList<Pair<NodeWrapper?, TPClass>>(), { acc, i ->
+            val parents = grupped.get(i)?.groupBy { it.parent }
+            val classes = parents?.keys?.map {
+                val fields = parents.get(it)?.map { TPField(it.name, it.node.nodeType.toString()) }?.toList() ?: emptyList()
+                Pair(it, TPClass(fields))
+            } ?: emptyList()
+
+            acc + classes
+        })
+        .map { it.first to it.second }
+        .toMap()
+    return TPClass(emptyList<TPField>())
+}
+
+fun collectElements(jsonNode: JsonNode, level: Int, parent: NodeWrapper?): List<NodeWrapper> {
+    val result = mutableListOf<NodeWrapper>()
     val fields = jsonNode.fields()
     while (fields.hasNext()) {
         val node = fields.next()
-        result.add(SimpleNode(node.key, level, node.value, parent = parent))
+        result.add(NodeWrapper(node.key, level, node.value, parent = parent))
     }
     return result.toList()
 }
@@ -61,27 +91,24 @@ while( nodes_to_visit isn't empty ) {
 }
  */
 
-fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
-    val awaitingNodes = mutableListOf<SimpleNode>()
-    var trees = listOf<Tree>()
+fun getElements(jsonNode: JsonNode): List<NodeWrapper> {
+    var nodes = emptyList<NodeWrapper>()
+    val awaitingNodes = mutableListOf<NodeWrapper>()
     awaitingNodes.addAll(collectElements(jsonNode, 0, null))
 
-    var current : SimpleNode? = null
-    var parent : SimpleNode? = null
-    var prev : SimpleNode?
-    var lastLeaf : Tree? = null
+    var current : NodeWrapper? = null
+    var prev : NodeWrapper?
 
     while (!awaitingNodes.isEmpty()) {
         prev = current
         current = awaitingNodes.removeAt(0)
 
         awaitingNodes.addAll(0, collectElements(current.node, current.level + 1, parent = current))
-        if (!current.node.isObject) {
-            current.value = current.node.toString()
-        } else {
-
-        }
-
+        nodes += current
+//        if (!current.node.isObject) {
+//            current.value = current.node.toString()
+//        } else {
+//        }
 //        if (prev == null || prev.level == current.level) {
 //            lastLeaf = Tree.Leaf(current.name, current.node)
 //            trees += listOf(lastLeaf)
@@ -89,9 +116,8 @@ fun getElements(jsonNode: JsonNode): List<JacksonObjectPair> {
 //            val node = Tree.Node(name = (lastLeaf as Tree.Leaf<*>).name)
 //            trees = trees.take(trees.size - 1) + listOf(node)
 //        }
-
     }
-    return mutableListOf()
+    return nodes
 }
 
 //fun getElements(jsonNode: JsonNode): Tree {
@@ -116,7 +142,7 @@ fun makeObjectNode(name: String = "", jsonNode: JsonNode): ObjectNode {
     //return ObjectNode("", "", listOf<ContainerNode>().asSequence())
 
     //val elements = collectElements(jsonNode)
-    val elements = getElements(jsonNode)
+    val elements = makeClass(getElements(jsonNode))
 
     return ObjectNode("", "", listOf<ContainerNode>().asSequence())
 }
