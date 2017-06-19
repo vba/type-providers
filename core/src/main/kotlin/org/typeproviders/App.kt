@@ -1,11 +1,13 @@
 package org.typeproviders
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.JsonNodeType
 import java.lang.reflect.Type
+import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 typealias JacksonObjectNode = com.fasterxml.jackson.databind.node.ObjectNode
 typealias JacksonObjectPair = Pair<String, JsonNode>
@@ -18,7 +20,7 @@ data class NodeWrapper(val name: String,
 
 
 open class TPType private constructor() {
-    data class Primitive(val type: Type, val isArray : Boolean = false) : TPType()
+    data class Primitive(val type: Class<Any>, val isArray : Boolean = false) : TPType()
     data class Reference(val type: TPClass, val isArray : Boolean = false) : TPType()
 }
 data class TPClass(val fields: Iterable<TPField>)
@@ -40,10 +42,14 @@ fun main(args: Array<String>) {
     val mapper = ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .enable(DeserializationFeature.USE_JAVA_ARRAY_FOR_JSON_ARRAY)
-    //    val map = mapper.readValue<Map<String, Any?>>(jsonUrl)
     val tree = mapper.readTree(jsonUrl)
+    val map = mapper.convertValue<Map<String, *>>(tree, object : TypeReference<Map<String, *>>(){})
+    //val f5 = map["field5"]?.javaClass?.canonicalName
+    //val f6 = map["field6"]
+
     // tree.get(0).fields().asSequence().toList()[2].node.nodeType
-    makeObjectNode("", tree)
+    getTType(map)
+    //makeObjectNode("", tree)
     println(tree)
 
     /*
@@ -55,6 +61,31 @@ fun main(args: Array<String>) {
     *
     * */
 }
+fun getTType(map: Map<String, *>): TPType {
+    map.entries
+    var nodes = emptyList<NodeWrapper>()
+    val awaitingNodes = mutableListOf<Pair<String, *>>()
+    awaitingNodes.addAll(map.entries.map {Pair(it.key, it.value)})
+
+    var current : Pair<String, *>? = null
+    var prev : Pair<String, *>?
+
+    while (!awaitingNodes.isEmpty()) {
+        prev = current
+        current = awaitingNodes.removeAt(0)
+
+        if(current.second is Map<*, *>) {
+            val subMap = current.second as Map<*, *>
+            awaitingNodes.addAll(0, subMap.entries.map { Pair(it.key.toString(), it.value) })
+        } else {
+            val type = (current.second?.javaClass ?: Any::class.java)
+            TPField(current.first, TPType.Primitive(type))
+        }
+    }
+
+    return TPType.Primitive(object : Any() {}.javaClass)
+}
+// OOOOOOOLLLLLLLLLLDDDDDDDDDDD
 
 fun getType(wrapper: NodeWrapper) : Type {
     return when(wrapper.node.nodeType) {
@@ -71,7 +102,7 @@ fun getType(wrapper: NodeWrapper) : Type {
 
 // jsonschema2pojo
 fun makeClass (wrappers: Iterable<NodeWrapper>) : TPClass {
-    val grupped = wrappers.groupBy { it.level }
+   /* val grupped = wrappers.groupBy { it.level }
     val associativeMap = (0 ..(wrappers.map { it.level }.max() ?: 0))
         .fold(emptyList<Pair<NodeWrapper?, TPClass>>(), { acc, i ->
             val parents = grupped.get(i)?.groupBy { it.parent } ?: emptyMap()
@@ -82,7 +113,7 @@ fun makeClass (wrappers: Iterable<NodeWrapper>) : TPClass {
                 Pair(it, TPClass(fields))
             }
             acc + classes
-        }).map { it.first to it.second }.toMap()
+        }).map { it.first to it.second }.toMap()*/
     return TPClass(emptyList<TPField>())
 }
 
