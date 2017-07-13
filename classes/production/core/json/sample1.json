@@ -1,8 +1,0 @@
-{
-  "field1": true,
-  "field2": null,
-  "field3": "It can be better",
-  "subType": {
-    "validationStatus" : 1234
-  }
-}
